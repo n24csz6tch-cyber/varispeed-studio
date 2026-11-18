@@ -15,6 +15,6 @@ export function prettyName(name: string): string {
     .replace(/\s{2,}/g, ' ')
     .replace(/^[\s\-–—·.]+|[\s\-–—·.]+$/g, '')
     .trim();
-  if (base.length < 2) return 'Audio sin nombre';
+  if (base.length < 2) return 'Untitled audio';
   return base.charAt(0).toUpperCase() + base.slice(1);
 }

@@ -48,7 +48,7 @@ export const Waveform = memo(function Waveform({ originalPeaks, processedPeaks, 
       const mid = height / 2;
 
       // centre line
-      lctx.fillStyle = 'rgba(255,255,255,0.06)';
+                lctx.fillStyle = 'rgba(240,238,229,0.07)';
       lctx.fillRect(0, mid - 0.5 * dpr, width, dpr);
 
       const drawPeaks = (peaks: Peaks, color: string | CanvasGradient, scale: number, alpha: number) => {
@@ -70,17 +70,17 @@ export const Waveform = memo(function Waveform({ originalPeaks, processedPeaks, 
         lctx.globalAlpha = 1;
       };
 
-      if (ghost) drawPeaks(ghost, 'rgba(150,170,205,0.30)', 1, 1);
+      if (ghost) drawPeaks(ghost, 'rgba(190,200,220,0.22)', 1, 1);
       if (active) {
         const gradient = lctx.createLinearGradient(0, 0, 0, height);
         if (view === 'processed') {
-          gradient.addColorStop(0, '#ffb37a');
-          gradient.addColorStop(0.5, '#ff8a4c');
-          gradient.addColorStop(1, '#d4632f');
+          gradient.addColorStop(0, '#f0ffb0');
+          gradient.addColorStop(0.45, '#d7ff4f');
+          gradient.addColorStop(1, '#8fb91f');
         } else {
-          gradient.addColorStop(0, '#c8d5ea');
-          gradient.addColorStop(0.5, '#93a6c4');
-          gradient.addColorStop(1, '#5f708c');
+          gradient.addColorStop(0, '#eef0e6');
+          gradient.addColorStop(0.5, '#b9c0b4');
+          gradient.addColorStop(1, '#6f7a72');
         }
         drawPeaks(active, gradient, 0.92, 1);
       }
@@ -110,15 +110,15 @@ export const Waveform = memo(function Waveform({ originalPeaks, processedPeaks, 
       if (duration > 0) {
         const x = Math.max(0, Math.min(width, (position / duration) * width));
         const gradient = ctx.createLinearGradient(0, 0, width, 0);
-        gradient.addColorStop(0, 'rgba(255,138,76,0.10)');
-        gradient.addColorStop(1, 'rgba(255,138,76,0.02)');
+        gradient.addColorStop(0, 'rgba(215,255,79,0.12)');
+        gradient.addColorStop(1, 'rgba(215,255,79,0.02)');
         ctx.fillStyle = gradient;
         ctx.fillRect(0, 0, x, height);
-        ctx.fillStyle = '#fff2e6';
+        ctx.fillStyle = '#f4ffe2';
         ctx.fillRect(x - 1 * sizeRef.current.dpr, 0, 2 * sizeRef.current.dpr, height);
         ctx.beginPath();
         ctx.arc(x, 10 * sizeRef.current.dpr, 3.6 * sizeRef.current.dpr, 0, Math.PI * 2);
-        ctx.fillStyle = '#ff8a4c';
+        ctx.fillStyle = '#d7ff4f';
         ctx.fill();
       }
       raf = requestAnimationFrame(frame);
@@ -151,7 +151,7 @@ export const Waveform = memo(function Waveform({ originalPeaks, processedPeaks, 
         style={{ height: HEIGHT }}
         role="slider"
         tabIndex={0}
-        aria-label="Buscar en la pista"
+        aria-label="Seek in the track"
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={Math.round((player.bufferPosition() / Math.max(player.bufferDuration(), 0.001)) * 100)}
@@ -165,7 +165,7 @@ export const Waveform = memo(function Waveform({ originalPeaks, processedPeaks, 
       />
       <div className="wave__scale">
         <span>0:00</span>
-        <span>{view === 'processed' ? 'DURACIÓN PROCESADA' : 'DURACIÓN ORIGINAL'}</span>
+        <span>{view === 'processed' ? 'PROCESSED LENGTH' : 'ORIGINAL LENGTH'}</span>
       </div>
     </div>
   );

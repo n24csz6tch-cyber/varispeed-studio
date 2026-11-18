@@ -34,9 +34,9 @@ interface DeckProps {
 }
 
 const PHASE_LABEL: Record<RenderProgress['phase'], string> = {
-  stretch: 'Estirando',
-  master: 'Masterizando',
-  encode: 'Codificando',
+  stretch: 'Stretching',
+  master: 'Mastering',
+  encode: 'Encoding',
 };
 
 export function Deck({
@@ -57,7 +57,7 @@ export function Deck({
     <section className="deck">
       <div className="deck__top">
         <div className="deck__info">
-          <span className="micro">AHORA EDITANDO</span>
+          <span className="micro">NOW EDITING</span>
           <h2 title={name}>{name}</h2>
           <div className="deck__sub">
             <span>{rate}</span>
@@ -80,16 +80,16 @@ export function Deck({
           ) : snapshot.hasProcessed ? (
             <span className="status status--ok">
               <span className="dot" />
-              Listo
+              Ready
             </span>
           ) : (
             <span className="status">
               <span className="pulse" />
-              Preparando
+              Preparing
             </span>
           )}
           <button type="button" className="btn btn--ghost btn--sm" onClick={onReplace}>
-            Cambiar
+            Replace
           </button>
         </div>
       </div>
@@ -109,7 +109,7 @@ export function Deck({
           }}
         >
           <span className="pulse" />
-          El navegador bloqueó el sonido — <b>toca aquí para activarlo</b>
+          The browser muted playback — <b>tap to enable sound</b>
         </button>
       ) : null}
 
@@ -118,14 +118,14 @@ export function Deck({
           type="button"
           className={cx('playbtn', snapshot.playing && 'is-playing')}
           onClick={() => void player.toggle()}
-          aria-label={snapshot.playing ? 'Pausar' : 'Reproducir'}
+          aria-label={snapshot.playing ? 'Pause' : 'Play'}
         >
           {snapshot.playing ? <PauseIcon /> : <PlayIcon />}
         </button>
 
         <TimeReadout player={player} />
 
-        <div className="ab" role="group" aria-label="Comparar original y procesado">
+        <div className="ab" role="group" aria-label="Compare original and processed">
           <button
             type="button"
             className={cx('ab__opt', snapshot.view === 'original' && 'is-active')}
@@ -140,7 +140,7 @@ export function Deck({
             onClick={() => player.setView('processed')}
             disabled={!snapshot.hasProcessed}
           >
-            <span>PROCESADO</span>
+            <span>PROCESSED</span>
             <b>{snapshot.hasProcessed ? formatTime(processedDuration) : '—'}</b>
           </button>
         </div>
@@ -154,7 +154,7 @@ export function Deck({
             max={1}
             step={0.01}
             value={snapshot.volume}
-            aria-label="Volumen"
+            aria-label="Volume"
             style={{ '--p': `${snapshot.volume * 100}%` } as CSSProperties}
             onChange={(event) => player.setVolume(Number(event.target.value))}
           />

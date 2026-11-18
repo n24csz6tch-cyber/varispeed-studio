@@ -11,16 +11,16 @@ export function FxPanel({
 }) {
   return (
     <Panel
-      title="Espacio"
+      title="Space"
       meta={
         <>
-          REVERB <span className="meta-sep">·</span> ESTÉREO
+          REVERB <span className="meta-sep">·</span> STEREO
         </>
       }
     >
       <Slider
-        label="ECO / REVERB"
-        hint="Mezcla: la cola clásica del slowed + reverb"
+        label="ECHO / REVERB"
+        hint="The classic slowed + reverb tail"
         min={0}
         max={REVERB_MAX}
         step={1}
@@ -37,8 +37,8 @@ export function FxPanel({
       />
 
       <Slider
-        label="COLA DEL REVERB"
-        hint="Cuánto sigue sonando la sala"
+        label="REVERB TAIL"
+        hint="How long the room keeps ringing"
         min={REVERB_DECAY_MIN}
         max={REVERB_DECAY_MAX}
         step={0.1}

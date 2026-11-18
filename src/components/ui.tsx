@@ -21,6 +21,14 @@ export function PauseIcon() {
   );
 }
 
+export function ArrowIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4.5 12h14m0 0-5.2-5.2M18.5 12l-5.2 5.2" />
+    </svg>
+  );
+}
+
 export function UploadIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">

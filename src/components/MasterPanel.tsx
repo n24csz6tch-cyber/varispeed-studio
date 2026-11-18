@@ -47,7 +47,7 @@ export function MasterPanel({
   const busy = !!exportProgress;
   return (
     <Panel
-      title="Master y exportación"
+      title="Master & export"
       meta={
         <>
           TRUE PEAK −1 dBTP <span className="meta-sep">·</span> {channels > 1 ? 'STEREO' : 'MONO'}
@@ -56,25 +56,25 @@ export function MasterPanel({
     >
       <div className="stats">
         <div className="stat">
-          <span>COMPENSACIÓN</span>
+          <span>MAKEUP</span>
           <b>{stats ? `${stats.gainCompDb >= 0 ? '+' : ''}${stats.gainCompDb.toFixed(1)} dB` : '—'}</b>
         </div>
         <div className="stat">
-          <span>PICO REAL</span>
+          <span>TRUE PEAK</span>
           <b>{stats ? `${stats.truePeakDb.toFixed(1)} dBTP` : '—'}</b>
         </div>
         <div className="stat">
-          <span>RED. LIMITADOR</span>
+          <span>LIMITER GR</span>
           <b>{stats ? `${stats.gainReductionDb.toFixed(1)} dB` : '—'}</b>
         </div>
       </div>
 
       <div className="chainline">
-        <span>ESTIRADO</span>
+        <span>STRETCH</span>
         <i />
         <span>GAIN</span>
         <i />
-        <span>LÍMITE</span>
+        <span>LIMIT</span>
       </div>
 
       <div className="exportmeta">
@@ -89,7 +89,7 @@ export function MasterPanel({
 
       <div className="exportrow">
         <Segmented<ExportFormat>
-          label="Formato de exportación"
+          label="Export format"
           value={format}
           onChange={onFormat}
           options={[
@@ -98,7 +98,7 @@ export function MasterPanel({
           ]}
         />
         <button type="button" className={cx('btn', 'btn--primary', 'btn--grow')} onClick={onExport} disabled={busy}>
-          {busy ? 'Exportando…' : `Exportar ${format === 'wav' ? 'WAV' : 'MP3'}`}
+          {busy ? 'Exporting…' : `Export ${format === 'wav' ? 'WAV' : 'MP3'}`}
         </button>
       </div>
 
@@ -108,14 +108,14 @@ export function MasterPanel({
           <div className="exportprogress__row">
             <span>
               {exportProgress.phase === 'stretch'
-                ? 'Estirado de calidad final'
+                ? 'Final-quality stretch'
                 : exportProgress.phase === 'master'
-                  ? 'Cadena de master'
-                  : 'Codificando archivo'}{' '}
+                  ? 'Master chain'
+                  : 'Encoding file'}{' '}
               · {Math.round(exportProgress.value * 100)}%
             </span>
             <button type="button" className="linkbtn" onClick={onCancelExport}>
-              Cancelar
+              Cancel
             </button>
           </div>
         </div>
@@ -124,7 +124,7 @@ export function MasterPanel({
       {exportResult ? (
         <div className="exportdone">
           <div>
-            <span className="micro">ARCHIVO LISTO</span>
+            <span className="micro">FILE READY</span>
             <b title={exportResult.name}>{exportResult.name}</b>
             <span className="exportdone__meta">
               {formatBytes(exportResult.bytes)} · {formatTime(exportResult.duration)} ·{' '}
@@ -132,7 +132,7 @@ export function MasterPanel({
             </span>
           </div>
           <a className="btn btn--ghost btn--sm" href={exportResult.url} download={exportResult.name}>
-            Guardar otra vez
+            Save again
           </a>
         </div>
       ) : null}

@@ -13,16 +13,16 @@ export function GainPanel({
 
   return (
     <Panel
-      title="Ganancia y voz"
+      title="Gain & voice"
       meta={
         <>
-          GANANCIA <span className="meta-sep">·</span> {gainLabel}
+          GAIN <span className="meta-sep">·</span> {gainLabel}
         </>
       }
     >
       <Slider
         label="GAIN"
-        hint="Como el gain de BandLab: empuja y el bajo satura"
+        hint="Like BandLab: push it and the low end saturates"
         min={0}
         max={GAIN_MAX}
         step={0.5}
@@ -39,8 +39,8 @@ export function GainPanel({
       />
 
       <Slider
-        label="CLARIDAD DE VOZ"
-        hint="Presencia a 3.2 kHz"
+        label="VOICE CLARITY"
+        hint="Presence at 3.2 kHz"
         min={0}
         max={CLARITY_MAX}
         step={0.5}
@@ -56,8 +56,8 @@ export function GainPanel({
       />
 
       <Slider
-        label="AIRE"
-        hint="Brillo a 10 kHz"
+        label="AIR"
+        hint="Shine at 10 kHz"
         min={0}
         max={AIR_MAX}
         step={0.5}

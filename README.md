@@ -1,10 +1,22 @@
 # VARISPEED Studio
 
-Editor de audio en el navegador para hacer **sped up**, **slowed** y **nightcore**: tempo y tono independientes, control de **gain** estilo BandLab con saturación, reverb, y exportación a WAV 24-bit o MP3.
+A browser audio lab for **sped up**, **slowed** and **nightcore** edits: independent tempo and pitch, a
+BandLab-style gain stage with soft-clip saturation, stereo reverb, and offline export to 24-bit WAV or
+320 kbps MP3.
 
-Todo el procesado ocurre en el dispositivo con [Rubber Band Library R3](https://breakfastquay.com/rubberband/) compilado a WebAssembly. Nada se sube a ningún servidor.
+Everything runs on the device with [Rubber Band Library R3](https://breakfastquay.com/rubberband/)
+compiled to WebAssembly. Nothing is uploaded, no account is needed, and the source audio never leaves
+the tab.
 
-## Desarrollo
+## Stack
+
+- React 19 + TypeScript + Vite
+- Rubber Band R3 via `rubberband-wasm`, driven from a Web Worker
+- Web Audio API transport with A/B between the original and the processed buffer
+- Canvas waveform, spectrum analyser and the hero signal graph
+- IndexedDB for the local library (cached sources and printed versions)
+
+## Development
 
 ```bash
 npm install
@@ -14,11 +26,13 @@ npm run dev
 ## Build
 
 ```bash
-npm run build     # comprueba tipos y genera dist/
-npm run preview   # sirve dist/ en local
+npm run build     # typecheck and emit dist/
+npm run preview   # serve dist/ locally
 ```
 
-## Publicación
+## Deployment
 
-- **GitHub Pages**: el workflow de `.github/workflows/pages.yml` construye y publica `dist/` en cada push a `main`. Actívalo una vez en *Settings → Pages → Source: GitHub Actions*.
-- **Con proxy de audio**: la versión desplegada en Freebuff Sites incluye un Worker (`deploy/index.js`) con `/api/proxy` y `/api/audio`, que permiten buscar en los catálogos y cargar audios desde un enlace sin problemas de CORS. En GitHub Pages esas dos rutas no existen, así que la búsqueda depende del CORS de cada API y la carga desde enlace no está disponible.
+The GitHub Actions workflow in `.github/workflows/pages.yml` typechecks, builds and publishes `dist/`
+to GitHub Pages on every push to `main` (Settings → Pages → Source: GitHub Actions).
+
+The app is a static bundle: no server, no proxy, no environment variables.

@@ -38,10 +38,19 @@ export const Spectrum = memo(function Spectrum({ player }: { player: Player }) {
         canvas.height = height;
       }
 
+            const analyser = player.getAnalyser();
+      const playingNow = player.isPlaying();
+      if (!analyser) return;
+
+      // Once the bars have fallen and the idle frame is painted, stop touching the
+      // canvas: otherwise the helper grid would be repainted every frame and stay
+      // visible as a faint ruled band while the transport is paused.
+      if (!playingNow && idleDrawn) return;
+
       ctx.clearRect(0, 0, width, height);
 
       // grid
-      ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+      ctx.strokeStyle = 'rgba(240, 238, 229, 0.05)';
       ctx.lineWidth = dpr;
       for (let i = 1; i < 4; i++) {
         const y = (height / 4) * i;
@@ -51,9 +60,6 @@ export const Spectrum = memo(function Spectrum({ player }: { player: Player }) {
         ctx.stroke();
       }
 
-      const analyser = player.getAnalyser();
-      const playingNow = player.isPlaying();
-      if (!analyser) return;
 
       if (!playingNow) {
         // Let the bars fall, then stop painting entirely while idle (battery).
@@ -109,11 +115,11 @@ export const Spectrum = memo(function Spectrum({ player }: { player: Player }) {
 
         const gradient = ctx.createLinearGradient(0, height, 0, height - h);
         if (isBass) {
-          gradient.addColorStop(0, 'rgba(255,138,76,0.95)');
-          gradient.addColorStop(1, 'rgba(255,196,120,0.75)');
+          gradient.addColorStop(0, 'rgba(255,122,69,0.92)');
+          gradient.addColorStop(1, 'rgba(255,186,130,0.62)');
         } else {
-          gradient.addColorStop(0, 'rgba(126,164,214,0.75)');
-          gradient.addColorStop(1, 'rgba(150,205,230,0.35)');
+          gradient.addColorStop(0, 'rgba(215,255,79,0.62)');
+          gradient.addColorStop(1, 'rgba(215,255,79,0.16)');
         }
         ctx.fillStyle = gradient;
         ctx.fillRect(x, height - h, barWidth, h);
@@ -140,9 +146,9 @@ export const Spectrum = memo(function Spectrum({ player }: { player: Player }) {
   return (
     <div className="spectrum">
       <div className="spectrum__head">
-        <span className="micro">ESPECTRO</span>
+        <span className="micro">SPECTRUM</span>
         <div className="spectrum__bass">
-          <span className="micro">GRAVES</span>
+          <span className="micro">LOW END</span>
           <div className="meter">
             <div className="meter__fill" ref={meterRef} />
             <div className="meter__peak" />

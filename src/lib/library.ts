@@ -20,7 +20,7 @@ export interface SavedSource {
   name: string;
   bytes: number;
   createdAt: number;
-  origin: 'upload' | 'search';
+  origin: 'upload';
   blob: Blob;
 }
 

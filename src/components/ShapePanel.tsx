@@ -33,14 +33,14 @@ export function ShapePanel({
 
   return (
     <Panel
-      title="Velocidad y tono"
+      title="Tempo & pitch"
       meta={
         <>
           RUBBER BAND R3 <span className="meta-sep">·</span> WASM
         </>
       }
     >
-      <div className="modes" role="radiogroup" aria-label="Modo de procesado">
+      <div className="modes" role="radiogroup" aria-label="Processing mode">
         {MODES.map((mode) => (
           <button
             key={mode}
@@ -69,8 +69,8 @@ export function ShapePanel({
       />
 
       <Slider
-        label="TONO"
-        hint={isTape ? 'SIGUE AL TEMPO' : settings.mode === 'natural' ? 'FIJADO AL ORIGINAL' : 'INDEPENDIENTE'}
+        label="PITCH"
+        hint={isTape ? 'FOLLOWS TEMPO' : settings.mode === 'natural' ? 'LOCKED TO ORIGINAL' : 'INDEPENDENT'}
         min={PITCH_MIN}
         max={PITCH_MAX}
         step={0.05}
@@ -86,13 +86,13 @@ export function ShapePanel({
       />
 
       <Toggle
-        label="FORMANTES"
+        label="FORMANT"
         hint={
           settings.mode === 'hybrid'
-            ? 'Mantiene el timbre de la voz al cambiar el tono'
+            ? 'Keeps the vocal timbre intact while the pitch moves'
             : settings.mode === 'tape'
-              ? 'Desactivado a propósito: la cinta mueve los formantes con el tono'
-              : 'Sin cambio de tono, los formantes no se mueven'
+              ? 'Off on purpose: tape drags the formants along with the pitch'
+              : 'No pitch shift, so there are no formants to keep'
         }
         checked={usesFormant(settings)}
         disabled={settings.mode !== 'hybrid'}

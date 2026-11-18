@@ -81,7 +81,7 @@ export const PRESETS: Preset[] = [
   {
     id: 'sped-up',
     name: 'SPED UP',
-    detail: '1.20× · gain +6',
+    detail: '1.20× · bright and fast',
     settings: {
       mode: 'tape',
       tempo: 1.2,
@@ -97,7 +97,7 @@ export const PRESETS: Preset[] = [
   {
     id: 'slowed',
     name: 'SLOWED',
-    detail: '0.85× · reverb',
+    detail: '0.85× · long reverb',
     settings: {
       mode: 'tape',
       tempo: 0.85,
@@ -113,7 +113,7 @@ export const PRESETS: Preset[] = [
   {
     id: 'nightcore',
     name: 'NIGHTCORE',
-    detail: '1.40× · voz aguda',
+    detail: '1.40× · high vocal',
     settings: {
       mode: 'tape',
       tempo: 1.4,
@@ -129,7 +129,7 @@ export const PRESETS: Preset[] = [
   {
     id: 'deep-slowed',
     name: 'DEEP SLOWED',
-    detail: '0.78× · reverb larga',
+    detail: '0.78× · deep and wide',
     settings: {
       mode: 'tape',
       tempo: 0.78,
@@ -145,7 +145,7 @@ export const PRESETS: Preset[] = [
   {
     id: 'original',
     name: 'ORIGINAL',
-    detail: '1.00× · sin tocar',
+    detail: '1.00× · untouched',
     settings: { ...DEFAULT_SETTINGS },
   },
 ];
@@ -180,15 +180,15 @@ export function ActivePresetId(s: Settings): string | null {
 export const MODE_INFO: Record<ProcessingMode, { name: string; blurb: string }> = {
   hybrid: {
     name: 'HYBRID',
-    blurb: 'Tempo y tono por separado',
+    blurb: 'Tempo and pitch, apart',
   },
   natural: {
     name: 'NATURAL',
-    blurb: 'Cambia la velocidad, no el tono',
+    blurb: 'Speed without the pitch',
   },
   tape: {
     name: 'TAPE',
-    blurb: 'Velocidad y tono a la vez',
+    blurb: 'Speed and pitch together',
   },
 };
 

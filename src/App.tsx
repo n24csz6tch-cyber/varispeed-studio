@@ -12,6 +12,7 @@ import { saveSource, saveVersion, type SavedSource, type SavedVersion } from './
 import { prettyName } from './lib/names';
 import { GainPanel } from './components/GainPanel';
 import { Deck } from './components/Deck';
+import { Hero } from './components/Hero';
 import { FxPanel } from './components/FxPanel';
 import { Library, type LoadOrigin } from './components/Library';
 import { MasterPanel, type ExportView } from './components/MasterPanel';
@@ -127,7 +128,7 @@ export default function App() {
           name: file.name,
           bytes: file.size,
           createdAt: Date.now(),
-          origin: origin === 'search' ? 'search' : 'upload',
+          origin: 'upload',
           blob: file,
         })
           .then(() => setSourceTick((n) => n + 1))
@@ -362,7 +363,7 @@ export default function App() {
     const version: SavedVersion = {
       id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
       name: exportFilename(track.name, settings, 'wav'),
-      detail: `${settings.tempo.toFixed(2)}× · ${settings.mode} · eco ${Math.round(settings.reverb)}% · gain +${settings.gain.toFixed(0)} dB`,
+      detail: `${settings.tempo.toFixed(2)}× · ${settings.mode} · reverb ${Math.round(settings.reverb)}% · gain +${settings.gain.toFixed(0)} dB`,
       duration: buffer.duration,
       bytes: blob.size,
       createdAt: Date.now(),
@@ -387,7 +388,7 @@ export default function App() {
         const name = `Mezcla — ${a.name.replace(/\.[^.]+$/, '')} + ${b.name.replace(/\.[^.]+$/, '')}.wav`;
         await loadFile(new File([wav], name, { type: 'audio/wav' }), 'upload');
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'No se han podido mezclar esos audios.');
+        setError(err instanceof Error ? err.message : 'Those files could not be mixed.');
       }
     },
     [loadFile],
@@ -400,8 +401,8 @@ export default function App() {
 
   return (
     <div className="app" onDragEnter={onDragEnter} onDragLeave={onDragLeave} onDragOver={onDragOver} onDrop={onDrop}>
-      <header className="topbar">
-        <div className="brand">
+      <header className="topbar" id="top">
+        <a className="brand" href="#top" aria-label="VARISPEED Studio">
           <span className="brand__mark" aria-hidden="true">
             <svg viewBox="0 0 32 32">
               <path
@@ -413,14 +414,20 @@ export default function App() {
               />
             </svg>
           </span>
-          <div className="brand__text">
-            <h1>VARISPEED</h1>
-            <span>SPED UP · SLOWED · NIGHTCORE</span>
-          </div>
-        </div>
-        <div className="badges">
-          <span className="badge">RUBBER BAND R3 · WASM</span>
-          <span className="badge badge--soft">100% ON-DEVICE</span>
+          <span className="brand__text">
+            <b>VARISPEED</b>
+            <i>STUDIO</i>
+          </span>
+        </a>
+        <div className="topbar__meta">
+          <span className="chipstat">
+            <i className="chipstat__dot" />
+            R3 ENGINE
+          </span>
+          <span className="chipstat chipstat--ghost">LOCAL ONLY</span>
+          <button type="button" className="btn btn--ghost btn--sm" onClick={openPicker}>
+            Load audio
+          </button>
         </div>
         <span className="topbar__progress" aria-hidden="true" />
       </header>
@@ -448,7 +455,7 @@ export default function App() {
         />
 
         {track ? (
-          <>
+          <div className="studio">
             <Deck
               name={track.name}
               sampleRate={track.sampleRate}
@@ -465,17 +472,18 @@ export default function App() {
 
             <section className="presets" aria-label="Presets" data-reveal>
               <div className="presets__head">
-                <span className="micro">PRESETS</span>
-                <span className="presets__hint">Puntos de partida — puedes cambiar todo</span>
+                <span className="micro">STARTING POINTS</span>
+                <span className="presets__hint">Pick a flavour — every value stays editable.</span>
               </div>
               <div className="presets__grid">
-                {PRESETS.map((preset) => (
+                {PRESETS.map((preset, index) => (
                   <button
                     key={preset.id}
                     type="button"
                     className={cx('preset', activePreset === preset.id && 'is-active')}
                     onClick={() => setSettings(preset.settings)}
                   >
+                    <span className="preset__idx">{String(index + 1).padStart(2, '0')}</span>
                     <span className="preset__name">{preset.name}</span>
                     <span className="preset__detail">{preset.detail}</span>
                   </button>
@@ -505,39 +513,9 @@ export default function App() {
                 />
               </div>
             </div>
-          </>
+          </div>
         ) : (
-          <section className={dragging ? 'deck deck--empty is-dragging' : 'deck deck--empty'}>
-            <div className="deck__top">
-              <div className="deck__info">
-                <span className="micro">AHORA EDITANDO</span>
-                <h2>Tu canción, en otra velocidad.</h2>
-                <div className="deck__sub">
-                  <span>SPED UP</span>
-                  <i />
-                  <span>SLOWED</span>
-                  <i />
-                  <span>NIGHTCORE</span>
-                </div>
-              </div>
-            </div>
-            <div className="deck__empty">
-              <span className="deck__emptyart" aria-hidden="true">
-                <svg viewBox="0 0 24 24">
-                  <path d="M12 15V4M12 4 8 8M12 4l4 4" />
-                  <path d="M4 15v3.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V15" />
-                </svg>
-              </span>
-              <h3>Arrastra tu canción</h3>
-              <p>
-                O elige abajo una canción del catálogo o un tema libre. Todo se procesa aquí, en tu dispositivo.
-              </p>
-              <button type="button" className="btn btn--primary btn--lg" onClick={openPicker}>
-                Subir una canción
-              </button>
-              <span className="deck__formats">MP3 · WAV · M4A · FLAC · OGG</span>
-            </div>
-          </section>
+          <Hero onBrowse={openPicker} />
         )}
 
         <Library
@@ -549,10 +527,14 @@ export default function App() {
         />
 
         <footer className="footer" data-reveal>
-          <span>
-            Motor de audio: Rubber Band Library R3 (GPLv2) con rubberband-wasm · LAME (LGPL) para MP3 · Web Audio API
+          <div className="footer__brand">
+            <span>VARISPEED</span>
+            <em>STUDIO</em>
+          </div>
+          <span className="footer__note">
+            Engine: Rubber Band Library R3 (GPLv2) via rubberband-wasm · LAME (LGPL) for MP3 · Web Audio API
           </span>
-          <span>Nada sale de este dispositivo.</span>
+          <span className="footer__note footer__note--last">Processed on your device. Nothing is uploaded.</span>
         </footer>
       </main>
 

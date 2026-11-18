@@ -11,7 +11,7 @@ export function MiniBar({ player, snapshot }: { player: Player; snapshot: Player
         type="button"
         className={cx('playbtn', 'playbtn--sm', snapshot.playing && 'is-playing')}
         onClick={() => void player.toggle()}
-        aria-label={snapshot.playing ? 'Pausar' : 'Reproducir'}
+        aria-label={snapshot.playing ? 'Pause' : 'Play'}
       >
         {snapshot.playing ? <PauseIcon /> : <PlayIcon />}
       </button>
