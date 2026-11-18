@@ -1,4 +1,4 @@
-import type { RenderStats, Settings } from './types';
+import type { BendMap, RenderStats, Settings } from './types';
 
 export type ExportFormat = 'wav' | 'mp3';
 
@@ -17,8 +17,8 @@ export interface ExportResult {
 
 export type WorkerRequest =
   | { type: 'load'; requestId: number; channels: Float32Array[]; sampleRate: number }
-  | { type: 'render'; requestId: number; settings: Settings; quality: 'preview' | 'final' }
-  | { type: 'export'; requestId: number; settings: Settings; format: ExportFormat }
+  | { type: 'render'; requestId: number; settings: Settings; quality: 'preview' | 'final'; bend?: BendMap }
+  | { type: 'export'; requestId: number; settings: Settings; format: ExportFormat; bend?: BendMap }
   | { type: 'cancel'; requestId: number };
 
 export interface RenderChunk {

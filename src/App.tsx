@@ -2,10 +2,11 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 import { PreviewAssembler } from './audio/assembler';
 import { decodeAudioFile } from './audio/decode';
 import { engine, JobCancelled } from './audio/engine';
-import { ActivePresetId, PRESETS, computePeaks, exportFilename, stretchKey } from './audio/params';
+import { ActivePresetId, MAX_OUTPUT_SECONDS, PRESETS, computePeaks, exportFilename, formatTime, stretchKey } from './audio/params';
+import { bendDuration, bendKey, bendSummary } from './audio/bend';
 import { player } from './audio/player';
 import type { ExportFormat, RenderProgress } from './audio/protocol';
-import type { Peaks, RenderStats, Settings } from './audio/types';
+import type { BendMap, Peaks, RenderStats, Settings } from './audio/types';
 import { encodeWav16 } from './audio/compat';
 import { crossfadeBuffers } from './audio/mix';
 import { saveSource, saveVersion, type SavedSource, type SavedVersion } from './lib/library';
@@ -58,6 +59,7 @@ function downmix(ctx: BaseAudioContext, buffer: AudioBuffer): AudioBuffer {
 export default function App() {
   const [track, setTrack] = useState<Track | null>(null);
   const [settings, setSettings] = useState<Settings>(PRESETS[0].settings);
+  const [bend, setBend] = useState<BendMap | null>(null);
   const [processed, setProcessed] = useState<ProcessedView | null>(null);
   const [renderProgress, setRenderProgress] = useState<RenderProgress | null>(null);
   const [exportFormat, setExportFormat] = useState<ExportFormat>('wav');
@@ -115,6 +117,7 @@ export default function App() {
       setExportResult(null);
       setExportProgress(null);
       setProcessed(null);
+      setBend(null);
       setRenderProgress(null);
       switched.current = false;
       lastStretch.current = '';
@@ -155,7 +158,15 @@ export default function App() {
   // ---- Render preview whenever settings change -----------------------------
   useEffect(() => {
     if (!track) return;
-    const stretch = stretchKey(settings, 'preview');
+    const stretch = stretchKey(settings, 'preview') + (bend ? `|b:${bendKey(bend)}` : '');
+    const planned = bend ? bendDuration(bend, track.duration) : track.duration / settings.tempo;
+    if (planned > MAX_OUTPUT_SECONDS) {
+      setRenderProgress(null);
+      setError(
+        `This bend would produce a ${formatTime(planned)} track. The limit is ${formatTime(MAX_OUTPUT_SECONDS)} on this device.`,
+      );
+      return;
+    }
     // First render after a load: start immediately, the user is waiting. Later changes
     // get a debounce so dragging a slider does not queue a render per pixel.
     const delay = lastStretch.current === '' ? 40 : stretch === lastStretch.current ? 90 : 120;
@@ -179,9 +190,16 @@ export default function App() {
         let autoStarted = false;
         let swapped = false;
         let publishedAt = 0;
+        let mapSet = false;
 
         const publish = (restart = false) => {
           if (!sink.buffer) return;
+          // The map and its buffer swap together, so positions never refer to a buffer
+          // that was rendered with a different speed plan.
+          if (!mapSet) {
+            mapSet = true;
+            player.setBendMap(bend, track.duration);
+          }
           player.setProcessed(sink.buffer, {
             bufferedUntil: sink.complete ? Infinity : sink.frontier,
             restart,
@@ -200,6 +218,7 @@ export default function App() {
         const result = await engine.render(
           settings,
           'preview',
+          bend,
           (progress) => {
             if (seq === renderSeq.current) setRenderProgress(progress);
           },
@@ -245,21 +264,30 @@ export default function App() {
     }, delay);
 
     return () => window.clearTimeout(timer);
-  }, [track, settings]);
+  }, [track, settings, bend]);
 
   // ---- Export --------------------------------------------------------------
   const handleExport = useCallback(async () => {
     if (!track || exportProgress) return;
     setError(null);
+    const planned = bend ? bendDuration(bend, track.duration) : track.duration / settings.tempo;
+    if (planned > MAX_OUTPUT_SECONDS) {
+      setError(
+        `This bend would produce a ${formatTime(planned)} track. The limit is ${formatTime(MAX_OUTPUT_SECONDS)} on this device.`,
+      );
+      return;
+    }
     try {
       setExportProgress({ phase: 'stretch', value: 0 });
       await engine.loadSource(track.id, track.channels, track.sampleRate);
-      const result = await engine.exportTrack(settings, exportFormat, (progress) => setExportProgress(progress));
+      const result = await engine.exportTrack(settings, exportFormat, bend, (progress) =>
+        setExportProgress(progress),
+      );
 
       if (exportUrl.current) URL.revokeObjectURL(exportUrl.current);
       const url = URL.createObjectURL(result.blob);
       exportUrl.current = url;
-      const name = exportFilename(track.name, settings, exportFormat);
+      const name = exportFilename(track.name, settings, exportFormat, bend?.length ?? 0);
       setExportResult({
         url,
         name,
@@ -282,7 +310,7 @@ export default function App() {
       if (err instanceof JobCancelled) return;
       setError(err instanceof Error ? err.message : 'Export failed.');
     }
-  }, [track, settings, exportFormat, exportProgress]);
+  }, [track, settings, bend, exportFormat, exportProgress]);
 
   const handleCancelExport = useCallback(() => {
     engine.cancelExport();
@@ -362,8 +390,8 @@ export default function App() {
     const blob = encodeWav16(channels, buffer.sampleRate);
     const version: SavedVersion = {
       id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
-      name: exportFilename(track.name, settings, 'wav'),
-      detail: `${settings.tempo.toFixed(2)}× · ${settings.mode} · reverb ${Math.round(settings.reverb)}% · gain +${settings.gain.toFixed(0)} dB`,
+      name: exportFilename(track.name, settings, 'wav', bend?.length ?? 0),
+      detail: `${bend ? bendSummary(bend) : `${settings.tempo.toFixed(2)}×`} · ${settings.mode} · reverb ${Math.round(settings.reverb)}% · gain +${settings.gain.toFixed(0)} dB`,
       duration: buffer.duration,
       bytes: blob.size,
       createdAt: Date.now(),
@@ -371,7 +399,7 @@ export default function App() {
     };
     await saveVersion(version);
     return version;
-  }, [track, settings]);
+  }, [track, settings, bend]);
 
   const handleMix = useCallback(
     async (a: SavedSource, b: SavedSource, fadeSeconds: number) => {
@@ -396,7 +424,7 @@ export default function App() {
 
   // While a re-render is in flight the readout follows the new tempo immediately,
   // so the numbers respond on the same tap as the control.
-  const expectedDuration = track ? track.duration / settings.tempo : 0;
+  const expectedDuration = track ? (bend ? bendDuration(bend, track.duration) : track.duration / settings.tempo) : 0;
   const processedDuration = renderProgress || !processed ? expectedDuration : processed.duration;
 
   return (
@@ -461,6 +489,9 @@ export default function App() {
               sampleRate={track.sampleRate}
               channels={track.channelCount}
               duration={track.duration}
+              tempo={settings.tempo}
+              bend={bend}
+              onBendChange={setBend}
               peaks={track.peaks}
               processedPeaks={processed?.peaks ?? null}
               processedDuration={processedDuration}
@@ -481,7 +512,12 @@ export default function App() {
                     key={preset.id}
                     type="button"
                     className={cx('preset', activePreset === preset.id && 'is-active')}
-                    onClick={() => setSettings(preset.settings)}
+                    onClick={() => {
+                      setSettings(preset.settings);
+                      setBend((current) =>
+                        current ? current.map((segment) => ({ ...segment, tempo: preset.settings.tempo })) : current,
+                      );
+                    }}
                   >
                     <span className="preset__idx">{String(index + 1).padStart(2, '0')}</span>
                     <span className="preset__name">{preset.name}</span>
@@ -493,7 +529,7 @@ export default function App() {
 
             <div className="grid" data-reveal>
               <div className="col">
-                <ShapePanel settings={settings} onChange={update} />
+                <ShapePanel settings={settings} onChange={update} bendActive={!!bend} />
                 <FxPanel settings={settings} onChange={update} />
               </div>
               <div className="col">

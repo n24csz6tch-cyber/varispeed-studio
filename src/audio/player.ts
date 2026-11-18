@@ -1,4 +1,6 @@
+import { bufferToSource, sourceToBuffer } from './bend';
 import { encodeWav16, encodeWav16Async } from './compat';
+import type { BendMap } from './types';
 
 export type PlayerView = 'original' | 'processed';
 
@@ -48,6 +50,11 @@ export class Player {
   private startCtxTime = 0;
   private startPos = 0;
   private attachedRate = 1;
+  /** Tempo map of the attached render, when the processed view has one. */
+  private bendMap: BendMap | null = null;
+  private bendSourceDuration = 0;
+  /** Buffer-time position at which the current source node starts. */
+  private startBuffer = 0;
   private audioRunning = false;
   /** Silent looping media element used to put iOS Safari into playback audio session. */
   private sessionPrimer: HTMLAudioElement | null = null;
@@ -134,6 +141,34 @@ export class Player {
     this.updateMediaMetadata();
   }
 
+  /**
+   * Attach the map the processed buffer was rendered with. Positions stay in source
+   * time, so A/B and seek keep pointing at the same musical moment.
+   */
+  setBendMap(map: BendMap | null, sourceDuration: number): void {
+    this.bendMap = map && map.length ? map : null;
+    this.bendSourceDuration = sourceDuration;
+    this.startBuffer = this.bufferTimeForSource(this.startPos);
+    this.notify();
+  }
+
+  /** The map only describes the processed buffer; the original plays at 1:1. */
+  private activeBend(): BendMap | null {
+    return this.view === 'processed' && this.processed ? this.bendMap : null;
+  }
+
+  private bufferTimeForSource(seconds: number): number {
+    const map = this.activeBend();
+    if (!map || !this.bendSourceDuration) return seconds / (this.activeRate() || 1);
+    return sourceToBuffer(map, this.bendSourceDuration, seconds);
+  }
+
+  private sourceTimeForBuffer(seconds: number): number {
+    const map = this.activeBend();
+    if (!map || !this.bendSourceDuration) return seconds * (this.activeRate() || 1);
+    return bufferToSource(map, this.bendSourceDuration, seconds);
+  }
+
   private updateMediaMetadata(): void {
     if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) return;
     const session = navigator.mediaSession;
@@ -162,7 +197,10 @@ export class Player {
     set('seekbackward', (details) => this.seekSourceTime(this.sourcePosition() - (details.seekOffset ?? 10)));
     set('seekforward', (details) => this.seekSourceTime(this.sourcePosition() + (details.seekOffset ?? 10)));
     set('seekto', (details) => {
-      if (typeof details.seekTime === 'number') this.seekSourceTime(details.seekTime * (this.mediaRate || 1));
+      if (typeof details.seekTime !== 'number') return;
+      this.seekSourceTime(
+        this.activeBend() ? this.sourceTimeForBuffer(details.seekTime) : details.seekTime * (this.mediaRate || 1),
+      );
     });
   }
 
@@ -240,7 +278,7 @@ export class Player {
             el.onloadedmetadata = () => {
               el.onloadedmetadata = null;
               try {
-                el.currentTime = Math.min(pos / (this.mediaRate || 1), Math.max(0, (el.duration || 0) - 0.05));
+                el.currentTime = Math.min(this.bufferTimeForSource(pos), Math.max(0, (el.duration || 0) - 0.05));
               } catch {
                 /* ignore */
               }
@@ -268,10 +306,9 @@ export class Player {
    */
   private adoptMediaIfPlaying(): void {
     if (!this.playing || this.usingMedia || !this.media || this.mediaStale || !this.media.src) return;
-    const rate = this.mediaRate || 1;
     const pos = this.sourcePosition();
     try {
-      this.media.currentTime = Math.min(pos / rate, Math.max(0, (this.media.duration || 0) - 0.05));
+      this.media.currentTime = Math.min(this.bufferTimeForSource(pos), Math.max(0, (this.media.duration || 0) - 0.05));
     } catch {
       /* metadata not ready yet */
     }
@@ -343,10 +380,16 @@ export class Player {
 
   /** Playhead expressed in original-song time. */
   sourcePosition(): number {
+    const map = this.activeBend();
     if (this.usingMedia && this.media) {
+      if (map) return Math.min(this.sourceTimeForBuffer(this.media.currentTime), this.sourceDuration());
       return Math.min(this.media.currentTime * (this.mediaRate || 1), this.sourceDuration());
     }
     if (!this.playing || !this.ctx) return this.startPos;
+    if (map) {
+      const bufferPos = this.startBuffer + (this.ctx.currentTime - this.startCtxTime);
+      return Math.min(this.sourceTimeForBuffer(bufferPos), this.sourceDuration());
+    }
     const elapsed = (this.ctx.currentTime - this.startCtxTime) * this.attachedRate;
     const pos = this.startPos + elapsed;
     return Math.min(pos, this.sourceDuration());
@@ -354,6 +397,11 @@ export class Player {
 
   /** Playhead expressed in the attached buffer's own timebase (what the waveform draws). */
   bufferPosition(): number {
+    if (this.activeBend()) {
+      if (this.usingMedia && this.media) return this.media.currentTime;
+      if (!this.playing || !this.ctx) return this.bufferTimeForSource(this.startPos);
+      return this.startBuffer + (this.ctx.currentTime - this.startCtxTime);
+    }
     const rate = this.playing ? this.attachedRate : this.activeRate();
     return this.sourcePosition() / (rate || 1);
   }
@@ -372,9 +420,11 @@ export class Player {
 
     // Prefer the media element: it is the only path that survives backgrounding.
     if (this.view === 'processed' && this.media && !this.mediaStale && this.media.src) {
-      const rate = this.mediaRate || 1;
       try {
-        this.media.currentTime = Math.min(this.startPos / rate, Math.max(0, (this.media.duration || 0) - 0.05));
+        this.media.currentTime = Math.min(
+          this.bufferTimeForSource(this.startPos),
+          Math.max(0, (this.media.duration || 0) - 0.05),
+        );
         await this.media.play();
         this.stopNode();
         this.sessionPrimer?.pause();
@@ -412,6 +462,7 @@ export class Player {
     const duration = this.sourceDuration();
     if (!duration) return 0;
     if (this.view === 'processed' && this.processed && Number.isFinite(this.bufferedUntil)) {
+      if (this.activeBend()) return Math.min(duration, this.sourceTimeForBuffer(this.bufferedUntil));
       return Math.min(duration, this.bufferedUntil * (this.activeRate() || 1));
     }
     return duration;
@@ -423,7 +474,7 @@ export class Player {
     const pos = Math.max(0, Math.min(this.maxSourcePosition(), seconds));
     if (this.usingMedia && this.media) {
       try {
-        this.media.currentTime = pos / (this.mediaRate || 1);
+        this.media.currentTime = this.bufferTimeForSource(pos);
       } catch {
         /* metadata not ready */
       }
@@ -440,6 +491,10 @@ export class Player {
   }
 
   seekBufferTime(seconds: number): void {
+    if (this.activeBend()) {
+      this.seekSourceTime(this.sourceTimeForBuffer(seconds));
+      return;
+    }
     const rate = this.playing ? this.attachedRate : this.activeRate();
     this.seekSourceTime(seconds * (rate || 1));
   }
@@ -473,6 +528,9 @@ export class Player {
     this.processed = null;
     this.bufferedUntil = Infinity;
     this.view = 'original';
+    this.bendMap = null;
+    this.bendSourceDuration = 0;
+    this.startBuffer = 0;
     this.startPos = 0;
     this.notify();
   }
@@ -543,9 +601,10 @@ export class Player {
     const rate = this.activeRate();
     // Never start past the rendered frontier: beyond it the buffer is still empty.
     const playable = this.playableFrames(buffer);
+    const target = this.bufferTimeForSource(sourcePosition);
     const startFrame = Math.max(
       0,
-      Math.min(Math.floor((sourcePosition / (rate || 1)) * buffer.sampleRate), Math.max(0, playable - 1)),
+      Math.min(Math.floor(target * buffer.sampleRate), Math.max(0, playable - 1)),
     );
 
     const gain = this.gainNode.gain;
@@ -556,7 +615,10 @@ export class Player {
     const when = this.ctx.currentTime + 0.01;
     this.attachedRate = rate;
     this.startCtxTime = when;
-    this.startPos = (startFrame / buffer.sampleRate) * (rate || 1);
+    this.startBuffer = startFrame / buffer.sampleRate;
+    this.startPos = this.activeBend()
+      ? this.sourceTimeForBuffer(this.startBuffer)
+      : (startFrame / buffer.sampleRate) * (rate || 1);
 
     const streaming = this.view === 'processed' && playable < buffer.length;
     if (streaming) {

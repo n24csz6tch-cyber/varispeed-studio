@@ -15,6 +15,16 @@ export const REVERB_DECAY_MAX = 4.5;
 /** Conservative true-peak ceiling, in dBTP. */
 export const CEILING_DB = -1;
 
+/** Bend (tempo map) limits. */
+export const BEND_MIN_TEMPO = 0.5;
+export const BEND_MAX_TEMPO = 2;
+export const BEND_MAX_SEGMENTS = 6;
+export const BEND_MIN_SEGMENT_SECONDS = 1.5;
+export const BEND_CROSSFADE = 0.03;
+export const BEND_MIN_TRACK_SECONDS = 4;
+/** Ceiling for the processed audio, in seconds: the buffers all live in memory. */
+export const MAX_OUTPUT_SECONDS = 12 * 60;
+
 export const DEFAULT_SETTINGS: Settings = {
   mode: 'hybrid',
   tempo: 1,
@@ -266,12 +276,20 @@ export function sanitizeFilename(name: string): string {
     .slice(0, 80);
 }
 
-export function exportFilename(title: string, s: Settings, ext: string): string {
+export function exportFilename(title: string, s: Settings, ext: string, bendSegments = 0): string {
   const parts: string[] = [];
-  if (s.mode === 'tape') parts.push(`Tape ${s.tempo.toFixed(2)}x`);
-  else if (s.tempo > 1.001) parts.push(`Sped Up ${s.tempo.toFixed(2)}x`);
-  else if (s.tempo < 0.999) parts.push(`Slowed ${s.tempo.toFixed(2)}x`);
-  else parts.push('Full Tempo');
+  if (bendSegments > 0) {
+    // The map owns the speed: printing the unused global tempo would be a lie.
+    parts.push(`Bend ${bendSegments}seg`);
+  } else if (s.mode === 'tape') {
+    parts.push(`Tape ${s.tempo.toFixed(2)}x`);
+  } else if (s.tempo > 1.001) {
+    parts.push(`Sped Up ${s.tempo.toFixed(2)}x`);
+  } else if (s.tempo < 0.999) {
+    parts.push(`Slowed ${s.tempo.toFixed(2)}x`);
+  } else {
+    parts.push('Full Tempo');
+  }
   if (s.mode === 'hybrid' && Math.abs(s.pitch) > 0.001) {
     parts.push(`${s.pitch > 0 ? '+' : ''}${Number(s.pitch.toFixed(2))}st`);
   }

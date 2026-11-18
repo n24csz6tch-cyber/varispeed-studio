@@ -1,9 +1,10 @@
 import type { CSSProperties } from 'react';
 import type { Player, PlayerSnapshot } from '../audio/player';
 import type { RenderProgress } from '../audio/protocol';
-import type { Peaks } from '../audio/types';
+import type { BendMap, Peaks } from '../audio/types';
 import { formatTime } from '../audio/params';
 import { usePlayhead } from '../hooks/usePlayhead';
+import { BendLane } from './BendLane';
 import { Spectrum } from './Spectrum';
 import { Waveform } from './Waveform';
 import { PauseIcon, PlayIcon, ProgressBar, VolumeIcon, cx } from './ui';
@@ -24,6 +25,9 @@ interface DeckProps {
   sampleRate: number;
   channels: number;
   duration: number;
+  tempo: number;
+  bend: BendMap | null;
+  onBendChange: (bend: BendMap | null) => void;
   peaks: Peaks;
   processedPeaks: Peaks | null;
   processedDuration: number;
@@ -44,6 +48,9 @@ export function Deck({
   sampleRate,
   channels,
   duration,
+  tempo,
+  bend,
+  onBendChange,
   peaks,
   processedPeaks,
   processedDuration,
@@ -97,6 +104,8 @@ export function Deck({
       {renderProgress ? <ProgressBar value={renderProgress.value} /> : null}
 
       <Waveform originalPeaks={peaks} processedPeaks={processedPeaks} player={player} view={snapshot.view} />
+
+      <BendLane bend={bend} duration={duration} tempo={tempo} onChange={onBendChange} />
 
       {!snapshot.audioRunning ? (
         <button

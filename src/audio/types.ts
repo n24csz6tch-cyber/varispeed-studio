@@ -48,3 +48,14 @@ export interface Peaks {
   min: Float32Array;
   max: Float32Array;
 }
+
+/** One constant-speed stretch of the song, in source time. */
+export interface BendSegment {
+  /** Start of the segment in source time, in seconds. The first segment always starts at 0. */
+  start: number;
+  /** Speed multiplier for this segment (see BEND_MIN_TEMPO / BEND_MAX_TEMPO). */
+  tempo: number;
+}
+
+/** 1..6 segments, sorted by start, covering the whole song. */
+export type BendMap = BendSegment[];

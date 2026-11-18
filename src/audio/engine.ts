@@ -1,5 +1,5 @@
 import type { ExportFormat, ExportResult, RenderChunk, RenderProgress, WorkerRequest, WorkerResponse } from './protocol';
-import type { RenderResult, Settings } from './types';
+import type { BendMap, RenderResult, Settings } from './types';
 
 export class JobCancelled extends Error {
   constructor() {
@@ -118,6 +118,7 @@ export class StudioEngine {
   async render(
     settings: Settings,
     quality: 'preview' | 'final',
+    bend: BendMap | null,
     onProgress?: (progress: RenderProgress) => void,
     onChunk?: (chunk: RenderChunk) => void,
   ): Promise<RenderResult> {
@@ -125,7 +126,12 @@ export class StudioEngine {
     const requestId = this.sequence++;
     this.activeRender = requestId;
     try {
-      return await this.send<RenderResult>({ type: 'render', requestId, settings, quality }, [], onProgress, onChunk);
+      return await this.send<RenderResult>(
+        { type: 'render', requestId, settings, quality, bend: bend ?? undefined },
+        [],
+        onProgress,
+        onChunk,
+      );
     } finally {
       if (this.activeRender === requestId) this.activeRender = null;
     }
@@ -134,12 +140,17 @@ export class StudioEngine {
   async exportTrack(
     settings: Settings,
     format: ExportFormat,
+    bend: BendMap | null,
     onProgress?: (progress: RenderProgress) => void,
   ): Promise<ExportResult> {
     const requestId = this.sequence++;
     this.activeExport = requestId;
     try {
-      return await this.send<ExportResult>({ type: 'export', requestId, settings, format }, [], onProgress);
+      return await this.send<ExportResult>(
+        { type: 'export', requestId, settings, format, bend: bend ?? undefined },
+        [],
+        onProgress,
+      );
     } finally {
       if (this.activeExport === requestId) this.activeExport = null;
     }

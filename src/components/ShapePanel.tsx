@@ -23,9 +23,12 @@ const TEMPO_MARKS = [
 export function ShapePanel({
   settings,
   onChange,
+  bendActive = false,
 }: {
   settings: Settings;
   onChange: (patch: Partial<Settings>) => void;
+  /** When BEND is on, each segment owns its speed and this control would lie. */
+  bendActive?: boolean;
 }) {
   const isTape = settings.mode === 'tape';
   const pitchLocked = settings.mode !== 'hybrid';
@@ -58,14 +61,23 @@ export function ShapePanel({
 
       <Slider
         label="TEMPO"
-        hint={settings.tempo > 1.001 ? 'SPED UP' : settings.tempo < 0.999 ? 'SLOWED' : 'ORIGINAL'}
+        hint={
+          bendActive
+            ? 'BEND CONTROLS SPEED'
+            : settings.tempo > 1.001
+              ? 'SPED UP'
+              : settings.tempo < 0.999
+                ? 'SLOWED'
+                : 'ORIGINAL'
+        }
         min={TEMPO_MIN}
         max={TEMPO_MAX}
         step={0.005}
         value={settings.tempo}
         format={(v) => `${v.toFixed(2)}×`}
+        disabled={bendActive}
         onChange={(tempo) => onChange({ tempo })}
-        marks={TEMPO_MARKS}
+        marks={bendActive ? undefined : TEMPO_MARKS}
       />
 
       <Slider
