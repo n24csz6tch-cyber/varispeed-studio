@@ -13,7 +13,7 @@ the tab.
 - React 19 + TypeScript + Vite
 - Rubber Band R3 via `rubberband-wasm`, driven from a Web Worker
 - Web Audio API transport with A/B between the original and the processed buffer
-- Canvas waveform, spectrum analyser and the hero signal graph
+- Canvas waveform, spectrum analyser and the hero ribbon field
 - IndexedDB for the local library (cached sources and printed versions)
 
 ## Development
