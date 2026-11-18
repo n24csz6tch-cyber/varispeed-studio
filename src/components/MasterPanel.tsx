@@ -45,6 +45,11 @@ export function MasterPanel({
   exportResult,
 }: MasterPanelProps) {
   const busy = !!exportProgress;
+  // 24-bit PCM for WAV, 320 kbps for MP3 — a useful "how big will this be" hint.
+  const estimatedBytes =
+    format === 'wav'
+      ? processedDuration * sampleRate * (channels > 1 ? 2 : 1) * 3
+      : (processedDuration * 320_000) / 8;
   return (
     <Panel
       title="Master & export"
@@ -85,6 +90,7 @@ export function MasterPanel({
           {sampleRate >= 1000 ? `${(sampleRate / 1000).toFixed(sampleRate % 1000 === 0 ? 0 : 1)} kHz` : `${sampleRate} Hz`}{' '}
           · {format === 'wav' ? '24-bit PCM' : '320 kbps'}
         </span>
+        <span className="exportmeta__size">≈ {formatBytes(estimatedBytes)}</span>
       </div>
 
       <div className="exportrow">

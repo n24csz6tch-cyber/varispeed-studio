@@ -1,10 +1,20 @@
 import type { CSSProperties } from 'react';
 import { RibbonField } from './RibbonField';
-import { ArrowIcon, UploadIcon } from './ui';
+import { ArrowIcon, PlayIcon, UploadIcon } from './ui';
 
 const WAVE = Array.from({ length: 48 }, (_, i) =>
   Math.round(20 + Math.abs(Math.sin(i * 0.41) * Math.cos(i * 0.23)) * 76),
 );
+
+const TICKER = [
+  'SPED UP',
+  'SLOWED + REVERB',
+  'NIGHTCORE',
+  'TEMPO BENDS',
+  '±5 SEMITONES',
+  'TRUE-PEAK MASTER',
+  'ON THIS DEVICE',
+];
 
 const STAGES = [
   {
@@ -29,7 +39,15 @@ const STAGES = [
   },
 ];
 
-export function Hero({ onBrowse }: { onBrowse: () => void }) {
+export function Hero({
+  onBrowse,
+  onDemo,
+  demoBusy,
+}: {
+  onBrowse: () => void;
+  onDemo: () => void;
+  demoBusy: boolean;
+}) {
   return (
     <>
       <section className="hero">
@@ -67,10 +85,16 @@ export function Hero({ onBrowse }: { onBrowse: () => void }) {
                 Load a track
                 <ArrowIcon />
               </button>
-              <a className="btn btn--ghost btn--lg" href="#chain">
-                The signal path
-              </a>
+              <button type="button" className="btn btn--ghost btn--lg" onClick={onDemo} disabled={demoBusy}>
+                {demoBusy ? 'Building demo…' : 'Hear a demo'}
+                {demoBusy ? <span className="btn__spin" aria-hidden="true" /> : <PlayIcon />}
+              </button>
             </div>
+
+            <p className="hero__aside" data-reveal style={{ '--d': '410ms' } as CSSProperties}>
+              No file handy? Start with a four-bar loop synthesized right here.{' '}
+              <a href="#chain">See the signal path →</a>
+            </p>
 
             <ul className="hero__facts" data-reveal style={{ '--d': '440ms' } as CSSProperties}>
               <li>
@@ -80,6 +104,10 @@ export function Hero({ onBrowse }: { onBrowse: () => void }) {
               <li>
                 <b>±5 st</b>
                 <span>Formant-safe pitch</span>
+              </li>
+              <li>
+                <b>2–6</b>
+                <span>Bend segments</span>
               </li>
               <li>
                 <b>−1 dBTP</b>
@@ -141,13 +169,28 @@ export function Hero({ onBrowse }: { onBrowse: () => void }) {
               </span>
               <span className="herocard__dropcopy">
                 <b>Drop your audio</b>
-                <em>or click anywhere in this card to browse</em>
+                <em>or click this card to browse</em>
               </span>
               <span className="herocard__local">Local only</span>
             </div>
           </div>
         </div>
       </section>
+
+      <div className="ticker" aria-hidden="true">
+        <div className="ticker__track">
+          {[0, 1].map((copy) => (
+            <ul className="ticker__row" key={copy}>
+              {TICKER.map((item) => (
+                <li key={`${copy}-${item}`}>
+                  {item}
+                  <i />
+                </li>
+              ))}
+            </ul>
+          ))}
+        </div>
+      </div>
 
       <section className="chain" id="chain" aria-label="How the engine works">
         <header className="chain__head" data-reveal>

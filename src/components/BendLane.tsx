@@ -19,6 +19,13 @@ function round2(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
+/** Musical starting points: three equal stretches with a clear direction. */
+const SHAPES: { id: string; label: string; tempos: number[] }[] = [
+  { id: 'settle', label: 'Slow down', tempos: [1.12, 1.0, 0.84] },
+  { id: 'lift', label: 'Speed up', tempos: [0.9, 1.06, 1.28] },
+  { id: 'swell', label: 'Swell', tempos: [0.84, 1.16, 0.84] },
+];
+
 interface BendLaneProps {
   bend: BendMap | null;
   duration: number;
@@ -32,6 +39,7 @@ interface BendLaneProps {
  */
 export function BendLane({ bend, duration, tempo, onChange }: BendLaneProps) {
   const available = duration >= BEND_MIN_TRACK_SECONDS;
+  const canShape = duration / 3 >= BEND_MIN_SEGMENT_SECONDS;
   const [selected, setSelected] = useState(0);
   const laneRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<number | null>(null);
@@ -48,6 +56,13 @@ export function BendLane({ bend, duration, tempo, onChange }: BendLaneProps) {
     bend && index + 1 < bend.length ? bend[index + 1].start : duration;
 
   const percent = (seconds: number): string => `${(seconds / Math.max(duration, 0.001)) * 100}%`;
+
+  const applyShape = (tempos: number[]) => {
+    if (!canShape) return;
+    const span = duration / tempos.length;
+    onChange(tempos.map((tempo, index) => ({ start: round2(index * span), tempo })));
+    setSelected(0);
+  };
 
   const setSegmentTempo = (index: number, value: number) => {
     if (!bend) return;
@@ -182,6 +197,27 @@ export function BendLane({ bend, duration, tempo, onChange }: BendLaneProps) {
         </div>
       </div>
 
+      {available ? (
+        <div className="bend__shapes">
+          <span className="micro">SHAPES</span>
+          {SHAPES.map((shape) => (
+            <button
+              key={shape.id}
+              type="button"
+              className="bend__shape"
+              onClick={() => applyShape(shape.tempos)}
+              disabled={!canShape}
+              title={`${shape.label}: ${shape.tempos.map((t) => t.toFixed(2)).join(' → ')}×`}
+            >
+              {shape.label}
+            </button>
+          ))}
+          <span className="bend__shapehint">
+            {canShape ? 'Three equal parts, joined with a crossfade' : 'Track too short for a three-part shape'}
+          </span>
+        </div>
+      ) : null}
+
       {active ? (
         <div className="bend__lane">
           <div className="bend__track" ref={laneRef}>
@@ -202,6 +238,13 @@ export function BendLane({ bend, duration, tempo, onChange }: BendLaneProps) {
                   onClick={() => setSelected(index)}
                   onKeyDown={(event) => onSegmentKeyDown(index, event)}
                 >
+                  <span
+                    className={cx('bend__seg-fill', segment.tempo >= 1 ? 'is-fast' : 'is-slow')}
+                    style={{
+                      height: `${Math.max(8, ((segment.tempo - BEND_MIN_TEMPO) / (BEND_MAX_TEMPO - BEND_MIN_TEMPO)) * 100)}%`,
+                    }}
+                    aria-hidden="true"
+                  />
                   <span className="bend__seg-idx">{String(index + 1).padStart(2, '0')}</span>
                   <b>{segment.tempo.toFixed(2)}×</b>
                   <span className="bend__seg-time">

@@ -2,7 +2,17 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 import { PreviewAssembler } from './audio/assembler';
 import { decodeAudioFile } from './audio/decode';
 import { engine, JobCancelled } from './audio/engine';
-import { ActivePresetId, MAX_OUTPUT_SECONDS, PRESETS, computePeaks, exportFilename, formatTime, stretchKey } from './audio/params';
+import {
+  ActivePresetId,
+  DEFAULT_SETTINGS,
+  MAX_OUTPUT_SECONDS,
+  PRESETS,
+  computePeaks,
+  exportFilename,
+  formatTime,
+  stretchKey,
+} from './audio/params';
+import { renderDemoTrack } from './audio/demo';
 import { bendDuration, bendKey, bendSummary } from './audio/bend';
 import { player } from './audio/player';
 import type { ExportFormat, RenderProgress } from './audio/protocol';
@@ -19,6 +29,7 @@ import { Library, type LoadOrigin } from './components/Library';
 import { MasterPanel, type ExportView } from './components/MasterPanel';
 import { MiniBar } from './components/MiniBar';
 import { ShapePanel } from './components/ShapePanel';
+import { Shortcuts } from './components/Shortcuts';
 import { cx } from './components/ui';
 
 interface Track {
@@ -68,6 +79,8 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const [sourceTick, setSourceTick] = useState(0);
+  const [demoBusy, setDemoBusy] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const trackId = useRef(1);
@@ -125,7 +138,7 @@ export default function App() {
       setSettings(PRESETS[0].settings);
       // Mixes are saved as 16-bit WAV and land around 30 MB, so the library cap has to
       // sit above them; the load limit (96 MB) still guards the decoder.
-      if (origin !== 'library' && file.size <= 60 * 1024 * 1024) {
+      if (origin === 'upload' && file.size <= 60 * 1024 * 1024) {
         void saveSource({
           id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
           name: file.name,
@@ -348,14 +361,30 @@ export default function App() {
   // ---- Keyboard ------------------------------------------------------------
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.code !== 'Space' || event.metaKey || event.ctrlKey || event.altKey) return;
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
       const target = event.target as HTMLElement | null;
-      if (target && (['INPUT', 'BUTTON', 'A', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable)) {
+      const inField =
+        !!target && (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable);
+      const inControl = inField || (!!target && ['BUTTON', 'A'].includes(target.tagName));
+
+      if (event.key === '?') {
+        if (inField) return;
+        event.preventDefault();
+        setShortcutsOpen((open) => !open);
         return;
       }
-      if (!track) return;
-      event.preventDefault();
-      void player.toggle();
+
+      if (!track || inControl) return;
+      if (event.code === 'Space') {
+        event.preventDefault();
+        void player.toggle();
+        return;
+      }
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+        event.preventDefault();
+        const step = event.shiftKey ? 1 : 5;
+        player.seekSourceTime(player.sourcePosition() + (event.key === 'ArrowRight' ? step : -step));
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -381,6 +410,26 @@ export default function App() {
   const update = useCallback((patch: Partial<Settings>) => {
     setSettings((current) => ({ ...current, ...patch }));
   }, []);
+
+  const handleReset = useCallback(() => {
+    setSettings(DEFAULT_SETTINGS);
+    setBend(null);
+  }, []);
+
+  const handleDemo = useCallback(async () => {
+    if (demoBusy) return;
+    setDemoBusy(true);
+    setError(null);
+    try {
+      const file = await renderDemoTrack();
+      await loadFile(file, 'demo');
+      setSettings(DEFAULT_SETTINGS);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'The demo could not be built.');
+    } finally {
+      setDemoBusy(false);
+    }
+  }, [demoBusy, loadFile]);
 
   const saveCurrentVersion = useCallback(async (): Promise<SavedVersion | null> => {
     const buffer = player.processedBuffer();
@@ -456,6 +505,15 @@ export default function App() {
           <button type="button" className="btn btn--ghost btn--sm" onClick={openPicker}>
             Load audio
           </button>
+          <button
+            type="button"
+            className="iconbtn"
+            onClick={() => setShortcutsOpen(true)}
+            aria-label="Keyboard shortcuts"
+            title="Keyboard shortcuts"
+          >
+            ?
+          </button>
         </div>
         <span className="topbar__progress" aria-hidden="true" />
       </header>
@@ -504,7 +562,12 @@ export default function App() {
             <section className="presets" aria-label="Presets" data-reveal>
               <div className="presets__head">
                 <span className="micro">STARTING POINTS</span>
-                <span className="presets__hint">Pick a flavour — every value stays editable.</span>
+                <div className="presets__tools">
+                  <span className="presets__hint">Pick a flavour — every value stays editable.</span>
+                  <button type="button" className="btn btn--ghost btn--sm" onClick={handleReset}>
+                    Reset
+                  </button>
+                </div>
               </div>
               <div className="presets__grid">
                 {PRESETS.map((preset, index) => (
@@ -551,7 +614,7 @@ export default function App() {
             </div>
           </div>
         ) : (
-          <Hero onBrowse={openPicker} />
+          <Hero onBrowse={openPicker} onDemo={() => void handleDemo()} demoBusy={demoBusy} />
         )}
 
         <Library
@@ -563,9 +626,24 @@ export default function App() {
         />
 
         <footer className="footer" data-reveal>
-          <div className="footer__brand">
-            <span>VARISPEED</span>
-            <em>STUDIO</em>
+          <div className="footer__top">
+            <div className="footer__brand">
+              <span>VARISPEED</span>
+              <em>STUDIO</em>
+            </div>
+            <div className="footer__links">
+              <button type="button" className="footer__link" onClick={() => setShortcutsOpen(true)}>
+                Shortcuts
+              </button>
+              <a
+                className="footer__link"
+                href="https://github.com/n24csz6tch-cyber/varispeed-studio"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Source on GitHub
+              </a>
+            </div>
           </div>
           <span className="footer__note">
             Engine: Rubber Band Library R3 (GPLv2) via rubberband-wasm · LAME (LGPL) for MP3 · Web Audio API
@@ -577,6 +655,8 @@ export default function App() {
       {track ? <MiniBar player={player} snapshot={snapshot} /> : null}
 
       {dragging && track ? <div className="dropoverlay">Drop to replace the current track</div> : null}
+
+      <Shortcuts open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
     </div>
   );
 }

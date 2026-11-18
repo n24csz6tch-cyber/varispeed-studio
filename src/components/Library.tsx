@@ -3,7 +3,7 @@ import { deleteSource, deleteVersion, listSources, listVersions, type SavedSourc
 import { prettyName } from '../lib/names';
 import { cx } from './ui';
 
-export type LoadOrigin = 'upload' | 'library';
+export type LoadOrigin = 'upload' | 'library' | 'demo';
 
 interface LibraryProps {
   onLoadFile: (file: File, origin: LoadOrigin) => void;
