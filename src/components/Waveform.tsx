@@ -11,7 +11,24 @@ interface WaveformProps {
 
 const HEIGHT = 96;
 
-/** Canvas waveform: active buffer in the accent colour, the other version ghosted behind it. */
+/** Colours come from the active theme, so the waveform follows a palette change. */
+function readPalette() {
+  const styles = getComputedStyle(document.documentElement);
+  const ink = styles.getPropertyValue('--ink-rgb').trim().replace(/\s+/g, ',') || '26,22,18';
+  const accent = styles.getPropertyValue('--accent').trim() || '#d94e2a';
+  const accent2 = styles.getPropertyValue('--accent-2').trim() || '#1e3a5f';
+  const accentRgb = styles.getPropertyValue('--accent-rgb').trim().replace(/\s+/g, ',') || '217,78,42';
+  return {
+    ink,
+    centre: `rgba(${ink}, 0.1)`,
+    ghost: `rgba(${ink}, 0.16)`,
+    accent,
+    accent2,
+    accentRgb,
+  };
+}
+
+/** Canvas waveform: active buffer in the theme accent, the other version ghosted behind it. */
 export const Waveform = memo(function Waveform({ originalPeaks, processedPeaks, player, view }: WaveformProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const layerRef = useRef<HTMLCanvasElement | null>(null);
@@ -25,6 +42,53 @@ export const Waveform = memo(function Waveform({ originalPeaks, processedPeaks, 
 
     const active = view === 'processed' && processedPeaks ? processedPeaks : originalPeaks;
     const ghost = view === 'processed' ? originalPeaks : processedPeaks;
+    let raf = 0;
+    let lastPosition = Number.NaN;
+    let palette = readPalette();
+
+    const overlay = (force = false) => {
+      const { width, height, dpr } = sizeRef.current;
+      if (!width) return;
+      const position = player.bufferPosition();
+      if (!force && !player.isPlaying() && Math.abs(position - lastPosition) < 1e-4) return;
+      lastPosition = position;
+
+      ctx.clearRect(0, 0, width, height);
+      if (layerRef.current) ctx.drawImage(layerRef.current, 0, 0);
+
+      const duration = player.bufferDuration();
+      if (duration <= 0) return;
+      const x = Math.max(0, Math.min(width, (position / duration) * width));
+      ctx.fillStyle = `rgba(${palette.accentRgb}, 0.1)`;
+      ctx.fillRect(0, 0, x, height);
+      ctx.fillStyle = palette.accent;
+      ctx.fillRect(x - 1 * dpr, 0, 2 * dpr, height);
+      ctx.beginPath();
+      ctx.arc(x, 10 * dpr, 3.6 * dpr, 0, Math.PI * 2);
+      ctx.fill();
+    };
+
+    const tick = () => {
+      raf = 0;
+      overlay();
+      if (player.isPlaying()) raf = requestAnimationFrame(tick);
+    };
+
+    const wake = () => {
+      if (!raf) raf = requestAnimationFrame(tick);
+    };
+
+    const sync = () => {
+      if (player.isPlaying()) {
+        wake();
+        return;
+      }
+      if (raf) {
+        cancelAnimationFrame(raf);
+        raf = 0;
+      }
+      overlay(true);
+    };
 
     const paint = () => {
       const rect = canvas.getBoundingClientRect();
@@ -39,16 +103,17 @@ export const Waveform = memo(function Waveform({ originalPeaks, processedPeaks, 
 
       const layer = layerRef.current ?? document.createElement('canvas');
       layerRef.current = layer;
-      layer.width = width;
-      layer.height = height;
+      if (layer.width !== width) layer.width = width;
+      if (layer.height !== height) layer.height = height;
       const lctx = layer.getContext('2d');
       if (!lctx) return;
 
+      palette = readPalette();
       lctx.clearRect(0, 0, width, height);
       const mid = height / 2;
 
       // centre line
-                lctx.fillStyle = 'rgba(240,238,229,0.07)';
+      lctx.fillStyle = palette.centre;
       lctx.fillRect(0, mid - 0.5 * dpr, width, dpr);
 
       const drawPeaks = (peaks: Peaks, color: string | CanvasGradient, scale: number, alpha: number) => {
@@ -70,67 +135,36 @@ export const Waveform = memo(function Waveform({ originalPeaks, processedPeaks, 
         lctx.globalAlpha = 1;
       };
 
-      if (ghost) drawPeaks(ghost, 'rgba(190,200,220,0.22)', 1, 1);
+      if (ghost) drawPeaks(ghost, palette.ghost, 1, 1);
       if (active) {
-        const gradient = lctx.createLinearGradient(0, 0, 0, height);
         if (view === 'processed') {
-          gradient.addColorStop(0, '#f0ffb0');
-          gradient.addColorStop(0.45, '#d7ff4f');
-          gradient.addColorStop(1, '#8fb91f');
+          const gradient = lctx.createLinearGradient(0, 0, 0, height);
+          gradient.addColorStop(0, palette.accent);
+          gradient.addColorStop(1, palette.accent2);
+          drawPeaks(active, gradient, 0.92, 1);
         } else {
-          gradient.addColorStop(0, '#eef0e6');
-          gradient.addColorStop(0.5, '#b9c0b4');
-          gradient.addColorStop(1, '#6f7a72');
+          drawPeaks(active, `rgba(${palette.ink}, 0.82)`, 0.92, 1);
         }
-        drawPeaks(active, gradient, 0.92, 1);
       }
 
       lastPosition = Number.NaN;
-      frame();
-    };
-
-    let raf = 0;
-    let lastPosition = -1;
-    const frame = () => {
-      const layer = layerRef.current;
-      if (!canvas || !ctx || !layer) return;
-      const { width, height } = sizeRef.current;
-      const position = player.bufferPosition();
-      const active = player.isPlaying();
-      // Idle when paused: don't repaint the same frame 60 times a second.
-      if (!active && Math.abs(position - lastPosition) < 1e-4) {
-        raf = requestAnimationFrame(frame);
-        return;
-      }
-      lastPosition = position;
-      ctx.clearRect(0, 0, width, height);
-      ctx.drawImage(layer, 0, 0);
-
-      const duration = player.bufferDuration();
-      if (duration > 0) {
-        const x = Math.max(0, Math.min(width, (position / duration) * width));
-        const gradient = ctx.createLinearGradient(0, 0, width, 0);
-        gradient.addColorStop(0, 'rgba(215,255,79,0.12)');
-        gradient.addColorStop(1, 'rgba(215,255,79,0.02)');
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, x, height);
-        ctx.fillStyle = '#f4ffe2';
-        ctx.fillRect(x - 1 * sizeRef.current.dpr, 0, 2 * sizeRef.current.dpr, height);
-        ctx.beginPath();
-        ctx.arc(x, 10 * sizeRef.current.dpr, 3.6 * sizeRef.current.dpr, 0, Math.PI * 2);
-        ctx.fillStyle = '#d7ff4f';
-        ctx.fill();
-      }
-      raf = requestAnimationFrame(frame);
+      overlay(true);
+      if (player.isPlaying()) wake();
     };
 
     paint();
     const observer = new ResizeObserver(() => paint());
     observer.observe(canvas);
+    const themeWatcher = new MutationObserver(() => paint());
+    themeWatcher.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    const unsubscribe = player.subscribe(sync);
+    sync();
 
     return () => {
+      unsubscribe();
       observer.disconnect();
-      cancelAnimationFrame(raf);
+      themeWatcher.disconnect();
+      if (raf) cancelAnimationFrame(raf);
     };
   }, [originalPeaks, processedPeaks, player, view]);
 

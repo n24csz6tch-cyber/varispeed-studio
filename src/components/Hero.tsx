@@ -11,7 +11,8 @@ const TICKER = [
   'SLOWED + REVERB',
   'NIGHTCORE',
   'TEMPO BENDS',
-  '±5 SEMITONES',
+  'SQUIRREL VOICE',
+  '±12 SEMITONES',
   'TRUE-PEAK MASTER',
   'ON THIS DEVICE',
 ];
@@ -25,7 +26,7 @@ const STAGES = [
   {
     n: '02',
     title: 'Shift',
-    copy: 'Move pitch up to ±5 semitones on its own, with the vocal formants kept in place.',
+    copy: 'Move pitch up to ±12 semitones on its own — keep the formants, or drop them for the full chipmunk.',
   },
   {
     n: '03',
@@ -77,7 +78,7 @@ export function Hero({
 
             <p className="hero__lede" data-reveal style={{ '--d': '300ms' } as CSSProperties}>
               Sped up, slowed and nightcore edits built on a studio-grade time stretcher. Move tempo and pitch
-              independently, drive the gain until it bites, and print a clean master — all inside this tab.
+              independently — squirrel voice at full speed, if you like — shape the bass, and print a clean master.
             </p>
 
             <div className="hero__actions" data-reveal style={{ '--d': '360ms' } as CSSProperties}>
@@ -102,8 +103,8 @@ export function Hero({
                 <span>Independent tempo</span>
               </li>
               <li>
-                <b>±5 st</b>
-                <span>Formant-safe pitch</span>
+                <b>±12 st</b>
+                <span>Pitch, formants optional</span>
               </li>
               <li>
                 <b>2–6</b>

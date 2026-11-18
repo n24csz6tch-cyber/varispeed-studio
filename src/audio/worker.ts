@@ -50,7 +50,7 @@ function resetCache() {
 function gainCompFor(settings: Settings): number {
   const src = source;
   if (!src) throw new Error('No audio loaded.');
-  const key = [settings.clarity.toFixed(2), settings.air.toFixed(2)].join('|');
+  const key = [settings.bass.toFixed(2), settings.clarity.toFixed(2), settings.air.toFixed(2)].join('|');
   if (compCache && compCache.key === key) return compCache.value;
   const value = computeGainComp(src.channels, src.sampleRate, settings);
   compCache = { key, value };

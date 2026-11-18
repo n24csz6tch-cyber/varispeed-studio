@@ -9,8 +9,10 @@ export interface Settings {
   pitch: number;
   /** Preserve vocal formants while pitch shifting (hybrid mode only). */
   formant: boolean;
-  /** Output gain in dB (0-24), the BandLab-style control. Pushed hard it saturates. */
+  /** Output gain in dB (-12 to +24), applied before the limiter. Pushed hard it saturates. */
   gain: number;
+  /** Low-shelf weight in dB around 110 Hz (-12 to +12). */
+  bass: number;
   /** High-shelf presence lift in dB around 3.2 kHz, to keep the vocal above the bass. */
   clarity: number;
   /** High-shelf air lift in dB around 10 kHz. */

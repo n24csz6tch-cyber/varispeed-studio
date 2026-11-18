@@ -20,6 +20,13 @@ const TEMPO_MARKS = [
   { value: 1.4, label: '1.40' },
 ];
 
+/** One-tap voices. They only touch pitch, so the current speed is left alone. */
+const VOICES = [
+  { id: 'squirrel', name: 'SQUIRREL', detail: '+10 st', pitch: 10, formant: false },
+  { id: 'deep', name: 'DEEP VOICE', detail: '−8 st', pitch: -8, formant: false },
+  { id: 'clean', name: 'CLEAN', detail: '0 st', pitch: 0, formant: true },
+];
+
 export function ShapePanel({
   settings,
   onChange,
@@ -33,6 +40,12 @@ export function ShapePanel({
   const isTape = settings.mode === 'tape';
   const pitchLocked = settings.mode !== 'hybrid';
   const pitchValue = isTape ? tapeSemitones(settings.tempo) : settings.mode === 'natural' ? 0 : settings.pitch;
+  const activeVoice = VOICES.find(
+    (voice) =>
+      settings.mode === 'hybrid' &&
+      Math.abs(settings.pitch - voice.pitch) < 0.001 &&
+      usesFormant(settings) === voice.formant,
+  )?.id;
 
   return (
     <Panel
@@ -91,11 +104,32 @@ export function ShapePanel({
         disabled={pitchLocked}
         onChange={(pitch) => onChange({ pitch })}
         marks={[
-          { value: PITCH_MIN, label: '−5' },
+          { value: PITCH_MIN, label: '−12' },
           { value: 0, label: '0' },
-          { value: PITCH_MAX, label: '+5' },
+          { value: PITCH_MAX, label: '+12' },
         ]}
       />
+
+      <div className="voices" role="group" aria-label="Voice character">
+        <span className="micro">CHARACTER</span>
+        <div className="voices__row">
+          {VOICES.map((voice) => (
+            <button
+              key={voice.id}
+              type="button"
+              className={cx('voice', activeVoice === voice.id && 'is-active')}
+              aria-pressed={activeVoice === voice.id}
+              onClick={() => onChange({ mode: 'hybrid', pitch: voice.pitch, formant: voice.formant })}
+            >
+              <b>{voice.name}</b>
+              <span>{voice.detail}</span>
+            </button>
+          ))}
+        </div>
+        <p className="voices__hint">
+          Squirrel and deep voice move the pitch alone — the speed stays where you set it.
+        </p>
+      </div>
 
       <Toggle
         label="FORMANT"

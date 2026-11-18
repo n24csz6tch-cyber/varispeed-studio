@@ -277,6 +277,11 @@ export class Player {
             if (!wasPlaying) return;
             el.onloadedmetadata = () => {
               el.onloadedmetadata = null;
+              // A delayed encode can land long after the handoff started. Only take
+              // over if the transport is still playing the processed view and this is
+              // still the current media element — otherwise a pause or an A/B switch
+              // would be undone by the handoff itself.
+              if (!this.playing || this.view !== 'processed' || this.media !== el || token !== this.mediaToken) return;
               try {
                 el.currentTime = Math.min(this.bufferTimeForSource(pos), Math.max(0, (el.duration || 0) - 0.05));
               } catch {
@@ -285,6 +290,14 @@ export class Player {
               void el
                 .play()
                 .then(() => {
+                  if (!this.playing || this.view !== 'processed' || this.media !== el) {
+                    try {
+                      el.pause();
+                    } catch {
+                      /* already stopped */
+                    }
+                    return;
+                  }
                   this.stopNode();
                   this.usingMedia = true;
                   this.playing = true;
@@ -306,19 +319,30 @@ export class Player {
    */
   private adoptMediaIfPlaying(): void {
     if (!this.playing || this.usingMedia || !this.media || this.mediaStale || !this.media.src) return;
+    const el = this.media;
     const pos = this.sourcePosition();
     try {
-      this.media.currentTime = Math.min(this.bufferTimeForSource(pos), Math.max(0, (this.media.duration || 0) - 0.05));
+      el.currentTime = Math.min(this.bufferTimeForSource(pos), Math.max(0, (el.duration || 0) - 0.05));
     } catch {
       /* metadata not ready yet */
     }
-    void this.media
+    void el
       .play()
       .then(() => {
+        // play() resolves asynchronously. If the user paused or switched to the
+        // original while it was pending, adopting the element here would silently
+        // undo that and resume the processed render.
+        if (!this.playing || this.view !== 'processed' || this.media !== el) {
+          try {
+            el.pause();
+          } catch {
+            /* already stopped */
+          }
+          return;
+        }
         this.stopNode();
         this.sessionPrimer?.pause();
         this.usingMedia = true;
-        this.playing = true;
         this.notify();
       })
       .catch(() => undefined);
@@ -350,6 +374,15 @@ export class Player {
 
   getAnalyser(): AnalyserNode | null {
     return this.analyserNode;
+  }
+
+  /**
+   * The native media element bypasses the Web Audio graph, so while it carries
+   * playback the analyser sees silence. Callers use this to label the meter
+   * honestly instead of printing a fake −60 dB.
+   */
+  analyserLive(): boolean {
+    return !this.usingMedia;
   }
 
   private activeBuffer(): AudioBuffer | null {

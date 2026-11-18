@@ -30,7 +30,9 @@ import { MasterPanel, type ExportView } from './components/MasterPanel';
 import { MiniBar } from './components/MiniBar';
 import { ShapePanel } from './components/ShapePanel';
 import { Shortcuts } from './components/Shortcuts';
+import { ThemeMenu } from './components/ThemeMenu';
 import { cx } from './components/ui';
+import { applyTheme, loadTheme, type ThemeId } from './lib/theme';
 
 interface Track {
   id: number;
@@ -81,6 +83,7 @@ export default function App() {
   const [sourceTick, setSourceTick] = useState(0);
   const [demoBusy, setDemoBusy] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [theme, setTheme] = useState<ThemeId>(() => loadTheme());
 
   const inputRef = useRef<HTMLInputElement>(null);
   const trackId = useRef(1);
@@ -416,6 +419,11 @@ export default function App() {
     setBend(null);
   }, []);
 
+  const handleTheme = useCallback((id: ThemeId) => {
+    applyTheme(id);
+    setTheme(id);
+  }, []);
+
   const handleDemo = useCallback(async () => {
     if (demoBusy) return;
     setDemoBusy(true);
@@ -505,6 +513,7 @@ export default function App() {
           <button type="button" className="btn btn--ghost btn--sm" onClick={openPicker}>
             Load audio
           </button>
+          <ThemeMenu theme={theme} onTheme={handleTheme} />
           <button
             type="button"
             className="iconbtn"

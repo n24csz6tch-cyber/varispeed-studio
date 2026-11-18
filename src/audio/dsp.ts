@@ -1,5 +1,5 @@
 import type { RenderStats } from './types';
-import { CEILING_DB } from './params';
+import { BASS_FREQ, CEILING_DB } from './params';
 
 export interface Biquad {
   b0: number;
@@ -367,6 +367,8 @@ export class StreamingLimiter {
 export interface MasterSettings {
   /** Output gain in dB before the limiter. */
   gain: number;
+  /** Low-shelf weight in dB around BASS_FREQ. */
+  bass: number;
   clarity: number;
   air: number;
   reverb: number;
@@ -464,18 +466,20 @@ export function softClip(x: number): number {
 }
 
 /**
- * Small make-up trim: clarity and air lift the peaks, so a fixed trim keeps the
+ * Small make-up trim: bass, clarity and air lift the peaks, so a fixed trim keeps the
  * limiter from working on every hit. Derived from the source, so a streamed render
  * knows it before the first sample.
  */
 export function computeGainComp(input: Float32Array[], sampleRate: number, settings: MasterSettings): number {
+  const bass = Math.abs(settings.bass) > 0.01 ? lowShelf(sampleRate, BASS_FREQ, settings.bass, 0.9) : null;
   const presence = settings.clarity > 0.01 ? highShelf(sampleRate, CLARITY_FREQ, settings.clarity) : null;
   const air = settings.air > 0.01 ? highShelf(sampleRate, 10000, settings.air, 0.7) : null;
-  if (!presence && !air) return 0;
+  if (!bass && !presence && !air) return 0;
 
   let p = 0;
   for (const ch of input) {
     const tmp = new Float32Array(ch);
+    if (bass) applyBiquad(tmp, bass);
     if (presence) applyBiquad(tmp, presence);
     if (air) applyBiquad(tmp, air);
     for (let i = 0; i < tmp.length; i++) {
@@ -486,7 +490,9 @@ export function computeGainComp(input: Float32Array[], sampleRate: number, setti
 
   const peakDb = 20 * Math.log10(Math.max(p, 1e-9));
   const headroomDb = CEILING_DB - peakDb;
-  return headroomDb < 0 ? Math.max(-2, headroomDb) : 0;
+  // A tone control should stay a tone control: cap the automatic trim so a big bass
+  // lift is not silently turned back down by the whole track's worth of level.
+  return headroomDb < 0 ? Math.max(-9, headroomDb) : 0;
 }
 
 /**
@@ -527,11 +533,13 @@ export class MasterChain {
     this.limiter = new StreamingLimiter(sampleRate);
 
     const hpf = highPass(sampleRate, 25);
+    const bass = Math.abs(settings.bass) > 0.01 ? lowShelf(sampleRate, BASS_FREQ, settings.bass, 0.9) : null;
     const presence = settings.clarity > 0.01 ? highShelf(sampleRate, CLARITY_FREQ, settings.clarity) : null;
     const air = settings.air > 0.01 ? highShelf(sampleRate, 10000, settings.air, 0.7) : null;
     this.filters = this.channels.map(() => {
       // Two cascaded 12 dB/oct sections: 24 dB/oct below 25 Hz, so rumble really goes.
       const chain: BiquadState[] = [new BiquadState(hpf), new BiquadState(hpf)];
+      if (bass) chain.push(new BiquadState(bass));
       if (presence) chain.push(new BiquadState(presence));
       if (air) chain.push(new BiquadState(air));
       return chain;
@@ -583,7 +591,7 @@ export class MasterChain {
   stats(): RenderStats {
     return {
       gainCompDb: this.compDb,
-      peakInDb: 20 * Math.log10(Math.max(this.eqPeak, 1e-9)) + this.compDb,
+      peakInDb: 20 * Math.log10(Math.max(this.eqPeak, 1e-9)) + 20 * Math.log10(this.preGain),
       peakDb: this.limiter.peakDb,
       truePeakDb: this.limiter.truePeakDb,
       gainReductionDb: this.limiter.gainReductionDb,

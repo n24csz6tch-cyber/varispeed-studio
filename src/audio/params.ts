@@ -2,10 +2,15 @@ import type { Peaks, ProcessingMode, Settings } from './types';
 
 export const TEMPO_MIN = 0.5;
 export const TEMPO_MAX = 2;
-export const PITCH_MIN = -5;
-export const PITCH_MAX = 5;
+export const PITCH_MIN = -12;
+export const PITCH_MAX = 12;
 /** Gain in dB, applied before the limiter. Pushed hard it saturates. */
+export const GAIN_MIN = -12;
 export const GAIN_MAX = 24;
+/** Low-shelf bass control. Negative values scoop the low end, positive adds weight. */
+export const BASS_MIN = -12;
+export const BASS_MAX = 12;
+export const BASS_FREQ = 110;
 export const CLARITY_MIN = 0;
 export const CLARITY_MAX = 8;
 export const AIR_MAX = 8;
@@ -31,6 +36,7 @@ export const DEFAULT_SETTINGS: Settings = {
   pitch: 0,
   formant: true,
   gain: 0,
+  bass: 0,
   clarity: 0,
   air: 0,
   reverb: 0,
@@ -98,6 +104,7 @@ export const PRESETS: Preset[] = [
       pitch: 0,
       formant: false,
       gain: 6,
+      bass: 0,
       clarity: 0,
       air: 0,
       reverb: 0,
@@ -114,6 +121,7 @@ export const PRESETS: Preset[] = [
       pitch: 0,
       formant: false,
       gain: 6,
+      bass: 0,
       clarity: 0,
       air: 0,
       reverb: 22,
@@ -130,6 +138,7 @@ export const PRESETS: Preset[] = [
       pitch: 0,
       formant: false,
       gain: 4,
+      bass: 0,
       clarity: 0,
       air: 0,
       reverb: 0,
@@ -146,10 +155,28 @@ export const PRESETS: Preset[] = [
       pitch: 0,
       formant: false,
       gain: 9,
+      bass: 0,
       clarity: 0,
       air: 0,
       reverb: 28,
       reverbDecay: 3.3,
+    },
+  },
+  {
+    id: 'squirrel',
+    name: 'SQUIRREL',
+    detail: '1.00× · +10 st chipmunk voice',
+    settings: {
+      mode: 'hybrid',
+      tempo: 1,
+      pitch: 10,
+      formant: false,
+      gain: 2,
+      bass: 2,
+      clarity: 2,
+      air: 0,
+      reverb: 0,
+      reverbDecay: 2.5,
     },
   },
   {
@@ -167,6 +194,7 @@ export function sameSettings(a: Settings, b: Settings): boolean {
     (a.mode !== 'hybrid' || Math.abs(a.pitch - b.pitch) < 1e-6) &&
     a.formant === b.formant &&
     Math.abs(a.gain - b.gain) < 1e-6 &&
+    Math.abs(a.bass - b.bass) < 1e-6 &&
     a.clarity === b.clarity &&
     a.air === b.air &&
     a.reverb === b.reverb &&
@@ -181,6 +209,7 @@ export function ActivePresetId(s: Settings): string | null {
       Math.abs(p.settings.tempo - s.tempo) < 1e-6 &&
       Math.abs((p.settings.mode === 'hybrid' ? p.settings.pitch : 0) - (s.mode === 'hybrid' ? s.pitch : 0)) < 1e-6 &&
       Math.abs(p.settings.gain - s.gain) < 1e-6 &&
+      Math.abs(p.settings.bass - s.bass) < 1e-6 &&
       p.settings.clarity === s.clarity &&
       p.settings.reverb === s.reverb,
   );
