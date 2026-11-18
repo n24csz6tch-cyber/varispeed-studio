@@ -1,0 +1,12 @@
+node_modules/
+dist/
+deploy/assets/
+*.log
+.vite-dev.*
+.tmp*/
+screenshot*.png
+shot-*.png
+.env
+.env.*
+.DS_Store
+Thumbs.db
